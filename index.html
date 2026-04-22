@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dead Zone — Zombie Survival</title>
+  <meta name="description" content="A 2D top-down zombie survival game. Survive as long as possible against endless waves of zombies." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* ── Overlay Screens ── */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      background: rgba(5, 5, 10, 0.92);
+      backdrop-filter: blur(6px);
+      transition: opacity 0.4s ease;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    .game-title {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      background: linear-gradient(135deg, #ff4444 0%, #ff8800 60%, #ffcc00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      margin-bottom: 0.25em;
+    }
+
+    .subtitle {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(0.7rem, 1.5vw, 1rem);
+      letter-spacing: 0.3em;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 3rem;
+    }
+
+    .controls-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.5rem 2.5rem;
+      margin-bottom: 2.5rem;
+      min-width: 320px;
+    }
+    .controls-box h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      color: #ff6622;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+    }
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+    .control-row:last-child { border-bottom: none; }
+    .key-badge {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.7rem;
+      color: #ccc;
+    }
+
+    .btn-primary {
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      padding: 0.9em 3em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #cc2200, #ff4400);
+      color: #fff;
+      text-transform: uppercase;
+      box-shadow: 0 0 30px rgba(255, 68, 0, 0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 45px rgba(255, 68, 0, 0.65);
+    }
+    .btn-primary:active { transform: scale(0.97); }
+
+    /* ── Game Over ── */
+    #screen-gameover .go-title {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      color: #ff2222;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 40px rgba(255,34,34,0.5);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .stat-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #ff8822;
+    }
+
+    /* ── HUD ── */
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 14px 20px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    #hud.hidden { display: none; }
+
+    .hud-panel {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 8px 14px;
+      backdrop-filter: blur(4px);
+    }
+    .hud-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .hud-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Health bar */
+    .health-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .bar-track {
+      width: 160px;
+      height: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #hp-bar { height: 100%; background: linear-gradient(90deg, #22cc44, #44ff66); border-radius: 5px; transition: width 0.2s; }
+    #ammo-bar { height: 100%; background: linear-gradient(90deg, #ff8800, #ffcc00); border-radius: 5px; transition: width 0.2s; }
+
+    .hud-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    #wave-label {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.75rem;
+      color: #ff6622;
+      letter-spacing: 0.15em;
+    }
+    #score-display {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    #kill-streak {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.7rem;
+      color: #ffcc00;
+      letter-spacing: 0.1em;
+      min-height: 1em;
+    }
+
+    /* Low ammo blink */
+    @keyframes blink-red { 0%,100%{color:#ff3333} 50%{color:#aa1111} }
+    .blink-warn { animation: blink-red 0.6s infinite; }
+
+    /* Pause overlay */
+    #pause-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 8;
+      backdrop-filter: blur(3px);
+    }
+    #pause-overlay.hidden { display: none; }
+    #pause-overlay span {
+      font-family: 'Orbitron', monospace;
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      color: #fff;
+      text-shadow: 0 0 40px rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Main Menu ── -->
+<div class="screen" id="screen-menu">
+  <h1 class="game-title">DEAD ZONE</h1>
+  <p class="subtitle">Zombie Survival</p>
+
+  <div class="controls-box">
+    <h3>Controls</h3>
+    <div class="control-row"><span>Move</span><span class="key-badge">WASD / Arrows</span></div>
+    <div class="control-row"><span>Aim</span><span class="key-badge">Mouse</span></div>
+    <div class="control-row"><span>Shoot</span><span class="key-badge">Left Click / Space</span></div>
+    <div class="control-row"><span>Pause</span><span class="key-badge">P / Esc</span></div>
+    <div class="control-row"><span>Pickup Ammo</span><span class="key-badge">Walk Over</span></div>
+  </div>
+
+  <button class="btn-primary" id="btn-start">SURVIVE</button>
+</div>
+
+<!-- ── Game Over ── -->
+<div class="screen hidden" id="screen-gameover">
+  <p class="go-title">YOU DIED</p>
+  <p style="color:#666;font-size:0.85rem;letter-spacing:0.1em;margin-bottom:1rem;">The dead always win eventually.</p>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Survived</div>
+      <div class="stat-value" id="go-time">0s</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Kills</div>
+      <div class="stat-value" id="go-kills">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Score</div>
+      <div class="stat-value" id="go-score">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wave Reached</div>
+      <div class="stat-value" id="go-wave">1</div>
+    </div>
+  </div>
+  <button class="btn-primary" id="btn-restart">PLAY AGAIN</button>
+</div>
+
+<!-- ── HUD ── -->
+<div id="hud" class="hidden">
+  <div class="hud-panel health-bar-wrap">
+    <div class="hud-label">Health</div>
+    <div class="bar-track"><div id="hp-bar" style="width:100%"></div></div>
+    <div class="hud-label" style="margin-top:6px">Ammo</div>
+    <div class="bar-track"><div id="ammo-bar" style="width:100%"></div></div>
+    <div class="hud-value" id="ammo-count" style="margin-top:2px;font-size:0.8rem;color:#ffaa44">30 / 30</div>
+  </div>
+
+  <div class="hud-panel hud-center">
+    <div id="wave-label">WAVE 1</div>
+    <div id="score-display">0</div>
+    <div id="kill-streak"></div>
+  </div>
+
+  <div class="hud-panel">
+    <div class="hud-label">Time</div>
+    <div class="hud-value" id="time-display">0:00</div>
+    <div class="hud-label" style="margin-top:4px">Kills</div>
+    <div class="hud-value" id="kill-display">0</div>
+  </div>
+</div>
+
+<!-- ── Pause ── -->
+<div id="pause-overlay" class="hidden"><span>PAUSED</span></div>
+
+<!-- ── Canvas ── -->
+<canvas id="canvas"></canvas>
+
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
