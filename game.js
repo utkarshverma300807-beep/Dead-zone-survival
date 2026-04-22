@@ -31,6 +31,17 @@ let gameTime = 0, kills = 0, score = 0, wave = 1;
 let streakKills = 0, streakTimer = 0, bestStreak = 0;
 let spawnAccum = 0, camX = 0, camY = 0;
 
+// ── ORBITAL SPECIAL ATTACK ──
+const ORB_KILL_THRESHOLD = 50;  // every 50 kills
+const ORB_DURATION = 10;        // seconds active
+const ORB_RADIUS = 10;          // orb size
+const ORB_ORBIT_DIST = 70;      // orbit distance from player
+const ORB_SPEED = 18;           // radians per second
+let orbActive = false;
+let orbTimer = 0;
+let orbAngle = 0;
+let lastOrbMilestone = 0;       // tracks which milestone was last awarded
+
 // ── STONES (generated once per game) ──
 let stones = [];
 
@@ -107,6 +118,7 @@ function resetGame() {
   bullets.clear(); zombies.clear(); drops.clear();
   particles.length = 0;
   healTimer = 0;
+  orbActive = false; orbTimer = 0; orbAngle = 0; lastOrbMilestone = 0;
   generateStones();
 }
 
@@ -275,6 +287,51 @@ function update(dt) {
     healTimer = 0;
   }
 
+  // ── Orbital special attack ──
+  // Check if we crossed a 50-kill milestone
+  const currentMilestone = Math.floor(kills / ORB_KILL_THRESHOLD);
+  if (currentMilestone > lastOrbMilestone) {
+    lastOrbMilestone = currentMilestone;
+    orbActive = true;
+    orbTimer = ORB_DURATION;
+    orbAngle = 0;
+  }
+
+  if (orbActive) {
+    orbTimer -= dt;
+    orbAngle += ORB_SPEED * dt;
+    if (orbTimer <= 0) { orbActive = false; }
+
+    // Orb world position
+    const orbX = player.x + Math.cos(orbAngle) * ORB_ORBIT_DIST;
+    const orbY = player.y + Math.sin(orbAngle) * ORB_ORBIT_DIST;
+
+    // Trail particles
+    if (Math.random() < 0.6) {
+      spawnParticles(orbX, orbY, '#88ffff', 1, 30, 0.3);
+    }
+
+    // Orb vs Zombies — one-shot non-bosses
+    const orbNear = grid.query(orbX, orbY, ORB_RADIUS + CONFIG.ZOMBIE_RADIUS + 5);
+    for (const z of orbNear) {
+      if (!z.alive) continue;
+      if (dist({x: orbX, y: orbY}, z) < ORB_RADIUS + CONFIG.ZOMBIE_RADIUS) {
+        if (z.type === 2) {
+          // Boss: just deal heavy damage instead of instant kill
+          z.hp -= 2; z.flash = 0.15;
+          spawnParticles(z.x, z.y, '#88ffff', 5, 80, 0.3);
+        } else {
+          // Instant kill
+          z.alive = false; kills++;
+          score += 20;
+          streakKills++; streakTimer = 2;
+          spawnParticles(z.x, z.y, '#88ffff', 12, 150, 0.5);
+          if (Math.random() < s.dropChance) drops.spawn(z.x, z.y, CONFIG.DROP_AMMO_AMT);
+        }
+      }
+    }
+  }
+
   updateParticles(dt);
   if (player.hp <= 0) { player.hp = 0; gameOver(); }
 }
@@ -434,6 +491,29 @@ function render() {
 
   ctx.globalAlpha = 1;
 
+  // ── Orbital Orb ──
+  if (orbActive) {
+    const ox = player.x + Math.cos(orbAngle) * ORB_ORBIT_DIST - camX;
+    const oy = player.y + Math.sin(orbAngle) * ORB_ORBIT_DIST - camY;
+    // Outer glow
+    const pulse = 1 + Math.sin(gameTime * 8) * 0.15;
+    ctx.shadowColor = '#44ffff'; ctx.shadowBlur = 25;
+    ctx.fillStyle = 'rgba(100, 255, 255, 0.25)';
+    ctx.beginPath(); ctx.arc(ox, oy, ORB_RADIUS * 2.2 * pulse, 0, Math.PI*2); ctx.fill();
+    // Inner bright core
+    ctx.fillStyle = '#aaffff';
+    ctx.beginPath(); ctx.arc(ox, oy, ORB_RADIUS * pulse, 0, Math.PI*2); ctx.fill();
+    // White hot center
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(ox, oy, ORB_RADIUS * 0.4 * pulse, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Orbit ring trail (subtle)
+    ctx.strokeStyle = 'rgba(100, 255, 255, 0.12)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, ORB_ORBIT_DIST, 0, Math.PI*2); ctx.stroke();
+  }
+
   // Particles
   drawParticles(ctx, camX, camY);
 
@@ -471,7 +551,16 @@ function updateHUD() {
   const mins = Math.floor(gameTime/60), secs = Math.floor(gameTime%60);
   document.getElementById('time-display').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
   const streakEl = document.getElementById('kill-streak');
-  streakEl.textContent = streakKills>=3 ? `🔥 ${streakKills}x STREAK` : '';
+  if (orbActive) {
+    const orbSecs = Math.ceil(orbTimer);
+    streakEl.textContent = `⚡ ORB ACTIVE — ${orbSecs}s`;
+    streakEl.style.color = '#44ffff';
+  } else {
+    const killsToNext = ORB_KILL_THRESHOLD - (kills % ORB_KILL_THRESHOLD);
+    const streakText = streakKills>=3 ? `🔥 ${streakKills}x STREAK` : '';
+    streakEl.textContent = streakText || (kills > 0 ? `⚡ Orb in ${killsToNext} kills` : '');
+    streakEl.style.color = '#ffcc00';
+  }
 }
 
 // ── GAME STATES ──
