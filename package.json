@@ -1,0 +1,26 @@
+{
+  "name": "games",
+  "version": "1.0.0",
+  "description": "",
+  "main": "core.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/utkarshverma300807-beep/Dead-zone-survival.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/utkarshverma300807-beep/Dead-zone-survival/issues"
+  },
+  "homepage": "https://github.com/utkarshverma300807-beep/Dead-zone-survival#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}

@@ -255,6 +255,38 @@
       color: #fff;
       text-shadow: 0 0 40px rgba(255,255,255,0.3);
     }
+
+    /* ── Lobby ── */
+    .lobby-box {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 2rem;
+      min-width: 320px;
+      text-align: center;
+    }
+    .lobby-box input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 0.8rem;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .lobby-players-list {
+      max-height: 100px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+    .lobby-players-list div {
+      padding: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
   </style>
 </head>
 <body>
@@ -273,13 +305,19 @@
     <div class="control-row"><span>Pickup Ammo</span><span class="key-badge">Walk Over</span></div>
   </div>
 
+  <div class="lobby-box">
+    <input type="text" id="username-input" placeholder="Enter username (optional)" maxlength="16">
+    <div style="font-size: 0.75rem; color: #ff6622; margin-bottom: 0.5rem; letter-spacing: 0.1em; font-family: 'Orbitron', monospace;">LOBBY</div>
+    <div class="lobby-players-list" id="lobby-players">Waiting for players...</div>
+  </div>
+
   <button class="btn-primary" id="btn-start">SURVIVE</button>
 </div>
 
 <!-- ── Game Over ── -->
 <div class="screen hidden" id="screen-gameover">
-  <p class="go-title">YOU DIED</p>
-  <p style="color:#666;font-size:0.85rem;letter-spacing:0.1em;margin-bottom:1rem;">The dead always win eventually.</p>
+  <p class="go-title" style="font-size:clamp(1.5rem, 4vw, 3rem);">THE UNDEAD ARE UNSTOPPABLE</p>
+  <p style="color:#666;font-size:0.85rem;letter-spacing:0.1em;margin-bottom:1rem;">No one survived...</p>
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-label">Survived</div>
@@ -298,7 +336,7 @@
       <div class="stat-value" id="go-wave">1</div>
     </div>
   </div>
-  <button class="btn-primary" id="btn-restart">PLAY AGAIN</button>
+  <button class="btn-primary" id="btn-restart">BACK TO MENU</button>
 </div>
 
 <!-- ── HUD ── -->
@@ -331,6 +369,7 @@
 <!-- ── Canvas ── -->
 <canvas id="canvas"></canvas>
 
+<script src="/socket.io/socket.io.js"></script>
 <script src="core.js"></script>
 <script src="game.js"></script>
 </body>
